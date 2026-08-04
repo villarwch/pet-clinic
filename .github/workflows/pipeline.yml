@@ -1,0 +1,21 @@
+name: pipeline t4
+
+on:
+  push:
+    branches: [ "feature/devsecops-pipeline" ]
+
+jobs:
+  build-and-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: gitclone
+        uses: actions/checkout@v4
+
+      - name: setup
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Compile and package
+        run: ./mvnw -B clean package -DskipTests

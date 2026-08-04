@@ -26,6 +26,10 @@
     <jacoco.version>0.8.7</jacoco.version>
     <nohttp-checkstyle.version>0.0.10</nohttp-checkstyle.version>
     <spring-format.version>0.0.31</spring-format.version>
+    
+    <!-- SonarCloud properties -->
+    <sonar.projectKey>villarwch_petclinic</sonar.projectKey>  
+    <sonar.organization>villarwch</sonar.organization>
 
   </properties>
 

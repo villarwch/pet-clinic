@@ -18,4 +18,6 @@ jobs:
           java-version: '17'
 
       - name: Compile and package
-        run: ./mvnw -B clean package -DskipTests
+        run: |
+          chmod +x ./mvnw
+          ./mvnw -B clean package -DskipTests

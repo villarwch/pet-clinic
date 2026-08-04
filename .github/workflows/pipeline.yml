@@ -2,7 +2,7 @@ name: pipeline t4
 
 on:
   push:
-    branches: [ "feature/devsecops-pipeline" ]
+    branches: [ "feature/devsecops-t4" ]
 
 jobs:
   build-and-scan:

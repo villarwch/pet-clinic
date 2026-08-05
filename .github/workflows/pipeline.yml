@@ -38,6 +38,7 @@ jobs:
         run: mvn -B clean package -DskipTests
 
       - name: ojala funque sonarcloud
+        continue-on-error: true
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |

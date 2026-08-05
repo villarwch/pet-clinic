@@ -3,6 +3,8 @@ name: pipeline t4
 on:
   push:
     branches: [ "feature/devsecops-t4" ]
+  pull_request:
+    types: [opened, synchronize, reopened]
 
 jobs:
   build-and-scan:

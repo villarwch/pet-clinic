@@ -50,7 +50,7 @@ jobs:
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
         run: |
-          mvn org.owasp:dependency-check-maven:13.0.0:check \
+          mvn org.owasp:dependency-check-maven:12.2.2:check \
             -DfailBuildOnCVSS=4 \
             -DnvdApiKey=${NVD_API_KEY} \
             -DassemblyAnalyzerEnabled=false

@@ -44,3 +44,19 @@ jobs:
           mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
             -Dsonar.projectKey=villarwch_pet-clinic \
             -Dsonar.qualitygate.wait=true
+
+      - name: SCA DC
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        run: |
+          mvn org.owasp:dependency-check-maven:13.0.0:check \
+            -DfailBuildOnCVSS=4 \
+            -DnvdApiKey=${NVD_API_KEY} \
+            -DassemblyAnalyzerEnabled=false
+
+      - name: Subir reporte
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-check-report
+          path: target/dependency-check-report.html

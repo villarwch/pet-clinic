@@ -7,13 +7,48 @@ on:
     types: [opened, synchronize, reopened]
 
 jobs:
-  build-and-scan:
+  build:
+    name: Build
     runs-on: ubuntu-latest
     steps:
-      - name: gitclone
+      - name: Clonar repositorio
         uses: actions/checkout@v4
 
-      - name: setup
+      - name: Configurar Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Cache de Maven
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-m2-
+
+      - name: Compilar el proyecto
+        run: mvn -B clean package -DskipTests
+
+      - name: Subir el jar compilado
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-jar
+          path: target/*.jar
+
+  sast:
+    name: SAST - SonarCloud
+    runs-on: ubuntu-latest
+    needs: build
+    continue-on-error: true
+    steps:
+      - name: Clonar repositorio
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configurar Java 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
@@ -33,14 +68,220 @@ jobs:
           path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar
           restore-keys: |
-            ${{ runner.os }}-sonar    
-      - name: Compilar el proyecto con mvn
-        run: mvn -B clean package -DskipTests
+            ${{ runner.os }}-sonar
 
-      - name: ojala funque sonarcloud
+      - name: Analisis SonarCloud
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
           mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
             -Dsonar.projectKey=villarwch_pet-clinic \
             -Dsonar.qualitygate.wait=true
+
+  sca:
+    name: SCA - Dependency-Check
+    runs-on: ubuntu-latest
+    needs: sast
+    continue-on-error: true
+    steps:
+      - name: Clonar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Cache de Maven
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-m2-
+
+      - name: Analisis de dependencias
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        run: |
+          mvn org.owasp:dependency-check-maven:12.2.2:check \
+            -DfailBuildOnCVSS=4 \
+            -DnvdApiKey=${NVD_API_KEY} \
+            -DassemblyAnalyzerEnabled=false
+
+      - name: Subir reporte
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-check-report
+          path: target/dependency-check-report.html
+
+  image-security:
+    name: Docker Build + Trivy
+    runs-on: ubuntu-latest
+    needs: sca
+    continue-on-error: true
+    steps:
+      - name: Clonar repositorio
+        uses: actions/checkout@v4
+
+      - name: Descargar el jar compilado
+        uses: actions/download-artifact@v4
+        with:
+          name: app-jar
+          path: target
+
+      - name: Construir imagen Docker
+        run: docker build -t pet-clinic:${{ github.sha }} .
+
+      - name: Escaneo con Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: pet-clinic:${{ github.sha }}
+          format: table
+          
+name: pipeline t4
+
+on:
+  push:
+    branches: [ "feature/devsecops-t4" ]
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clonar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Cache de Maven
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-m2-
+
+      - name: Compilar el proyecto
+        run: mvn -B clean package -DskipTests
+
+      - name: Subir el jar compilado
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-jar
+          path: target/*.jar
+
+  sast:
+    name: SAST - SonarCloud
+    runs-on: ubuntu-latest
+    needs: build
+    continue-on-error: true
+    steps:
+      - name: Clonar repositorio
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configurar Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Cache de Maven
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-m2-
+
+      - name: Cache de SonarQube
+        uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: |
+            ${{ runner.os }}-sonar
+
+      - name: Analisis SonarCloud
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+            -Dsonar.projectKey=villarwch_pet-clinic \
+            -Dsonar.qualitygate.wait=true
+
+  sca:
+    name: SCA - Dependency-Check
+    runs-on: ubuntu-latest
+    needs: sast
+    continue-on-error: true
+    steps:
+      - name: Clonar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Cache de Maven
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-m2-
+
+      - name: Analisis de dependencias
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        run: |
+          mvn org.owasp:dependency-check-maven:12.2.2:check \
+            -DfailBuildOnCVSS=4 \
+            -DnvdApiKey=${NVD_API_KEY} \
+            -DassemblyAnalyzerEnabled=false
+
+      - name: Subir reporte
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-check-report
+          path: target/dependency-check-report.html
+
+  image-security:
+    name: Docker Build + Trivy
+    runs-on: ubuntu-latest
+    needs: sca
+    continue-on-error: true
+    steps:
+      - name: Clonar repositorio
+        uses: actions/checkout@v4
+
+      - name: Descargar el jar compilado
+        uses: actions/download-artifact@v4
+        with:
+          name: app-jar
+          path: target
+
+      - name: Construir imagen Docker
+        run: docker build -t pet-clinic:${{ github.sha }} .
+
+      - name: Escaneo con Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: pet-clinic:${{ github.sha }}
+          format: table
+          severity: CRITICAL,HIGH,MEDIUM
+          exit-code: '1'

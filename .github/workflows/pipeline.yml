@@ -71,5 +71,4 @@ jobs:
         with:
           image-ref: pet-clinic:${{ github.sha }}
           format: table
-          severity: CRITICAL,HIGH
           exit-code: '1'
